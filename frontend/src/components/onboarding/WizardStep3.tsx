@@ -593,6 +593,12 @@ export function WizardStep3({ onBack, onDone }: Props) {
 
               <Progress value={progress} className="h-1" />
 
+              {isLoading && sourceType === 'documents' && (
+                <p className="text-xs text-muted-foreground mt-4">
+                  El procesamiento de PDFs puede tardar 2–3 minutos. Por favor no cierres esta ventana.
+                </p>
+              )}
+
               {phase === 'error' && (
                 <Button variant="outline" className="mt-6" onClick={() => setPhase('idle')}>
                   Intentar de nuevo

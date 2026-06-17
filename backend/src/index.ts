@@ -204,7 +204,7 @@ app.post('/api/upload-rag', upload.array('files', 10), async (req, res) => {
       console.log(`[upload-rag] Enviando ${file.originalname} (${fileType}) a n8n...`);
 
       lastResponse = await axios.post(webhookUrl, payload, {
-        timeout: 120000,
+        timeout: 270000, // 4.5 min — PDF processing in n8n can take several minutes
         headers: { 'Content-Type': 'application/json' },
         maxContentLength: Infinity,
         maxBodyLength: Infinity,

@@ -23,7 +23,7 @@ export async function uploadRag(name: string, files: File[]): Promise<CreateRagR
   files.forEach((file) => form.append('files', file));
 
   const { data } = await axios.post<CreateRagResponse>(`${API_BASE}/upload-rag`, form, {
-    timeout: 120000,
+    timeout: 300000, // 5 min — n8n PDF processing can take 2-3 min in production
   });
   return data;
 }
