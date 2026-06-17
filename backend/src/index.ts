@@ -19,15 +19,21 @@ const allowedOrigins = [
     : []),
 ];
 
-app.use(helmet());
-app.use(cors({
+const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) callback(null, true);
     else callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+  credentials: false,
+};
+
+// CORS must be registered before helmet so preflight OPTIONS requests
+// get the Access-Control-Allow-Origin header before any other middleware runs.
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(express.json({ limit: '10mb' }));
 
 const limiter = rateLimit({
