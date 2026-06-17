@@ -169,11 +169,12 @@ app.post('/api/upload-rag', upload.array('files', 10), async (req, res) => {
   if (!files || files.length === 0) return res.status(400).json({ error: 'Se requiere al menos un archivo' });
 
   const webhookUrl = process.env.N8N_UPLOAD_RAG_WEBHOOK || process.env.N8N_CREATE_RAG_WEBHOOK;
+  const sharedRagId = demoRagId();
 
   if (!webhookUrl) {
     return res.json({
       success: true,
-      ragId: demoRagId(),
+      ragId: sharedRagId,
       name,
       sourceType: 'documents',
       status: 'ready',
@@ -182,11 +183,20 @@ app.post('/api/upload-rag', upload.array('files', 10), async (req, res) => {
     });
   }
 
-  try {
-    // n8n processes one file per call — send sequentially, share the same ragId
-    const sharedRagId = demoRagId();
-    let lastResponse: any = null;
+  // Respond immediately — PDF processing in n8n can take several minutes.
+  // Fire-and-forget so the client never times out waiting for n8n.
+  res.json({
+    success: true,
+    ragId: sharedRagId,
+    name,
+    sourceType: 'documents',
+    status: 'processing',
+    message: `${files.length} documento(s) enviados para indexación`,
+    createdAt: new Date().toISOString(),
+  });
 
+  // Process in background after the response is already sent
+  (async () => {
     for (const file of files) {
       const ext = file.originalname.split('.').pop()?.toLowerCase() ?? '';
       const fileType = ext === 'pdf' ? 'pdf' : 'text';
@@ -201,30 +211,23 @@ app.post('/api/upload-rag', upload.array('files', 10), async (req, res) => {
         fileData: file.buffer.toString('base64'),
       };
 
-      console.log(`[upload-rag] Enviando ${file.originalname} (${fileType}) a n8n...`);
+      console.log(`[upload-rag] Background: enviando ${file.originalname} (${fileType}) a n8n...`);
 
-      lastResponse = await axios.post(webhookUrl, payload, {
-        timeout: 270000, // 4.5 min — PDF processing in n8n can take several minutes
-        headers: { 'Content-Type': 'application/json' },
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-      });
+      try {
+        await axios.post(webhookUrl, payload, {
+          timeout: 300000,
+          headers: { 'Content-Type': 'application/json' },
+          maxContentLength: Infinity,
+          maxBodyLength: Infinity,
+        });
+        console.log(`[upload-rag] Background: ${file.originalname} procesado correctamente`);
+      } catch (error: any) {
+        console.error(`[upload-rag] Background error (${file.originalname}):`, error?.message);
+        console.error('[upload-rag] n8n status:', error?.response?.status);
+        console.error('[upload-rag] n8n response:', JSON.stringify(error?.response?.data, null, 2));
+      }
     }
-
-    // Return last n8n response but always use sharedRagId so all files are queryable together
-    const result = lastResponse?.data ?? {};
-    return res.json({ ...result, ragId: result.ragId ?? sharedRagId });
-
-  } catch (error: any) {
-    const n8nBody = error?.response?.data;
-    const n8nStatus = error?.response?.status;
-    console.error('[upload-rag] n8n status:', n8nStatus);
-    console.error('[upload-rag] n8n response:', JSON.stringify(n8nBody, null, 2));
-    return res.status(502).json({
-      error: 'Error procesando los documentos',
-      n8nError: n8nBody,
-    });
-  }
+  })();
 });
 
 // ─── Chat ──────────────────────────────────────────────────────────────────
