@@ -168,7 +168,7 @@ app.post('/api/upload-rag', upload.array('files', 10), async (req, res) => {
   if (!name) return res.status(400).json({ error: 'name es requerido' });
   if (!files || files.length === 0) return res.status(400).json({ error: 'Se requiere al menos un archivo' });
 
-  const webhookUrl = process.env.N8N_UPLOAD_RAG_WEBHOOK || process.env.N8N_CREATE_RAG_WEBHOOK;
+  const webhookUrl = process.env.N8N_CREATE_RAG_WEBHOOK;
   const sharedRagId = demoRagId();
 
   if (!webhookUrl) {
@@ -286,5 +286,5 @@ app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 app.listen(PORT, () => {
   console.log(`\n🚀 RAG Studio API  →  http://localhost:${PORT}`);
   console.log(`Mode: ${process.env.N8N_CREATE_RAG_WEBHOOK ? '✅ n8n conectado' : '🟡 Demo (sin webhooks)'}`);
-  console.log(`Upload webhook: ${process.env.N8N_UPLOAD_RAG_WEBHOOK ? '✅' : process.env.N8N_CREATE_RAG_WEBHOOK ? '↩️  usando create-rag' : '🟡 demo'}\n`);
+  console.log(`Upload webhook: ${process.env.N8N_CREATE_RAG_WEBHOOK ? '✅ usando create-rag' : '🟡 demo'}\n`);
 });
