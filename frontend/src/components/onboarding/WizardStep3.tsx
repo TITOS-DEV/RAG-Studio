@@ -205,9 +205,15 @@ export function WizardStep3({ onBack, onDone }: Props) {
       return;
     }
 
-    if (sourceType === 'supabase' && !supabase.supabaseUrl.trim()) {
-      toast({ title: 'URL de Supabase requerida' });
-      return;
+    if (sourceType === 'supabase') {
+      if (!supabase.supabaseUrl.trim()) {
+        toast({ title: 'URL de Supabase requerida' });
+        return;
+      }
+      if (!supabase.tableName.trim()) {
+        toast({ title: 'Nombre de tabla requerido', description: 'Ingresa el nombre de la tabla a indexar' });
+        return;
+      }
     }
 
     jsonMutation.mutate({
@@ -425,11 +431,12 @@ export function WizardStep3({ onBack, onDone }: Props) {
 
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Tabla (opcional)</Label>
+                          <Label className="text-xs">Tabla <span className="text-red-400">*</span></Label>
                           <Input
                             value={supabase.tableName}
                             onChange={(e) => setSupabase((s) => ({ ...s, tableName: e.target.value }))}
                             placeholder="documents"
+                            required
                           />
                         </div>
                         <div className="space-y-1.5">

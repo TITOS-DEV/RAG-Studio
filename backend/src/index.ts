@@ -132,8 +132,12 @@ app.post('/api/create-rag', async (req, res) => {
       if (!supabaseUrl || !supabaseKey) {
         return res.status(400).json({ error: 'supabaseUrl y supabaseKey son requeridos' });
       }
+      if (!tableName) {
+        return res.status(400).json({ error: 'tableName es requerido para la fuente Supabase' });
+      }
       console.log('[create-rag] Extrayendo datos de Supabase...');
       const records = await extractSupabase(supabaseUrl, supabaseKey, tableName, columns);
+      payload.databaseType = 'supabase';
       payload.records = records;
       payload.recordCount = records.length;
       payload.tableName = tableName;
@@ -145,9 +149,16 @@ app.post('/api/create-rag', async (req, res) => {
       headers: { 'Content-Type': 'application/json' },
       maxContentLength: Infinity,
       maxBodyLength: Infinity,
+      validateStatus: () => true, // don't throw on non-2xx — forward n8n's response as-is
     });
 
-    return res.json(response.data);
+    console.log(`[create-rag] n8n respondió con status ${response.status}`);
+
+    if (response.status >= 500) {
+      return res.status(502).json({ error: 'Error interno en el servicio de procesamiento' });
+    }
+
+    return res.status(response.status).json(response.data);
   } catch (error: any) {
     console.error('[create-rag] error:', error?.message || error);
     const isDbError = error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT' || error?.errno;

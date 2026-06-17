@@ -1,6 +1,7 @@
 import { Client as PgClient } from 'pg';
 import mysql from 'mysql2/promise';
 import { MongoClient } from 'mongodb';
+import { createClient } from '@supabase/supabase-js';
 
 export interface DbCredentials {
   host: string;
@@ -129,7 +130,7 @@ export async function extractMongoDB(creds: DbCredentials): Promise<ExtractedRec
   }
 }
 
-// ─── Supabase (PostgreSQL) ─────────────────────────────────────────────────
+// ─── Supabase (REST API via JS client) ────────────────────────────────────
 
 export async function extractSupabase(
   supabaseUrl: string,
@@ -137,51 +138,27 @@ export async function extractSupabase(
   tableName?: string,
   columns?: string
 ): Promise<ExtractedRecord[]> {
-  // Parse host from supabase URL: https://xxx.supabase.co
-  const host = supabaseUrl.replace('https://', '').replace('http://', '');
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const records: ExtractedRecord[] = [];
 
-  const client = new PgClient({
-    host: host,
-    port: 5432,
-    database: 'postgres',
-    user: 'postgres',
-    password: supabaseKey,
-    connectionTimeoutMillis: CONNECT_TIMEOUT,
-    ssl: { rejectUnauthorized: false },
-  });
+  if (tableName) {
+    const select = columns || '*';
+    const { data, error } = await supabase
+      .from(tableName)
+      .select(select)
+      .limit(MAX_ROWS_PER_TABLE);
 
-  await client.connect();
+    if (error) throw new Error(`Supabase query error on "${tableName}": ${error.message}`);
 
-  try {
-    const records: ExtractedRecord[] = [];
-
-    if (tableName) {
-      const cols = columns ? columns : '*';
-      const dataRes = await client.query(
-        `SELECT ${cols} FROM "${tableName}" LIMIT $1`,
-        [MAX_ROWS_PER_TABLE]
-      );
-      for (const row of dataRes.rows) {
-        records.push({ table: tableName, content: rowToText(tableName, row) });
-      }
-    } else {
-      const tablesRes = await client.query(`
-        SELECT table_name FROM information_schema.tables
-        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-      `);
-      for (const { table_name } of tablesRes.rows) {
-        const dataRes = await client.query(
-          `SELECT * FROM "${table_name}" LIMIT $1`,
-          [MAX_ROWS_PER_TABLE]
-        );
-        for (const row of dataRes.rows) {
-          records.push({ table: table_name, content: rowToText(table_name, row) });
-        }
-      }
+    for (const row of (data ?? [])) {
+      records.push({ table: tableName, content: rowToText(tableName, row as unknown as Record<string, unknown>) });
     }
-
-    return records;
-  } finally {
-    await client.end();
+  } else {
+    // Supabase REST API cannot enumerate tables without a custom RPC.
+    throw new Error(
+      'Para conectar Supabase debes especificar el nombre de la tabla (tableName).'
+    );
   }
+
+  return records;
 }
