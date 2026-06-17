@@ -3,9 +3,21 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
+// Vite 8 uses Rolldown which does not have a `jsx` input option.
+// tsconfig's `jsx: "react-jsx"` leaks into Rolldown's input options, causing a warning.
+// This plugin removes it before Rolldown validates the options.
+const fixRolldownJsx = {
+  name: 'fix-rolldown-jsx',
+  options(opts: Record<string, unknown>) {
+    delete opts.jsx;
+    return null;
+  },
+};
+
 export default defineConfig({
   plugins: [
     react(),
+    fixRolldownJsx as never,
     VitePWA({
       registerType: 'autoUpdate',
       strategies: 'injectManifest',
@@ -32,6 +44,9 @@ export default defineConfig({
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg}'],
+        buildPlugins: {
+          vite: [fixRolldownJsx as never],
+        },
       },
     }),
   ],

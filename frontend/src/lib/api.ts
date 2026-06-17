@@ -1,8 +1,12 @@
 import axios from 'axios';
 import type { CreateRagPayload, CreateRagResponse, ChatPayload, ChatResponse } from '@/types';
 
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
   timeout: 60000,
 });
@@ -18,7 +22,7 @@ export async function uploadRag(name: string, files: File[]): Promise<CreateRagR
   form.append('sourceType', 'documents');
   files.forEach((file) => form.append('files', file));
 
-  const { data } = await axios.post<CreateRagResponse>('/api/upload-rag', form, {
+  const { data } = await axios.post<CreateRagResponse>(`${API_BASE}/upload-rag`, form, {
     timeout: 120000,
   });
   return data;
