@@ -160,13 +160,21 @@ app.post('/api/create-rag', async (req, res) => {
 
     return res.status(response.status).json(response.data);
   } catch (error: any) {
-    console.error('[create-rag] error:', error?.message || error);
-    const isDbError = error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT' || error?.errno;
-    return res.status(isDbError ? 400 : 502).json({
-      error: isDbError
-        ? `No se pudo conectar a la base de datos: ${error.message}`
-        : 'Error conectando con el servicio de procesamiento',
-    });
+    const msg: string = error?.message || String(error);
+    console.error('[create-rag] error:', msg);
+
+    // Network / DB connection errors
+    const isNetworkError = error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT' || error?.errno;
+    if (isNetworkError) {
+      return res.status(400).json({ error: `No se pudo conectar: ${msg}` });
+    }
+
+    // Supabase JS client errors (thrown from extractSupabase)
+    if (msg.includes('Supabase') || msg.includes('supabase') || msg.includes('PGRST') || msg.includes('JWT')) {
+      return res.status(400).json({ error: msg });
+    }
+
+    return res.status(502).json({ error: `Error procesando la solicitud: ${msg}` });
   }
 });
 

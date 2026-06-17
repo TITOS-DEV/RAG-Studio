@@ -14,7 +14,7 @@ export interface DatabaseCredentials {
 export interface SupabaseCredentials {
   supabaseUrl: string;
   supabaseKey: string;
-  tableName?: string;
+  tableName: string;
   columns?: string;
 }
 

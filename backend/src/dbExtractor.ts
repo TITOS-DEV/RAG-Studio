@@ -135,30 +135,38 @@ export async function extractMongoDB(creds: DbCredentials): Promise<ExtractedRec
 export async function extractSupabase(
   supabaseUrl: string,
   supabaseKey: string,
-  tableName?: string,
+  tableName: string,
   columns?: string
 ): Promise<ExtractedRecord[]> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  const records: ExtractedRecord[] = [];
-
-  if (tableName) {
-    const select = columns || '*';
-    const { data, error } = await supabase
-      .from(tableName)
-      .select(select)
-      .limit(MAX_ROWS_PER_TABLE);
-
-    if (error) throw new Error(`Supabase query error on "${tableName}": ${error.message}`);
-
-    for (const row of (data ?? [])) {
-      records.push({ table: tableName, content: rowToText(tableName, row as unknown as Record<string, unknown>) });
-    }
-  } else {
-    // Supabase REST API cannot enumerate tables without a custom RPC.
-    throw new Error(
-      'Para conectar Supabase debes especificar el nombre de la tabla (tableName).'
-    );
+  if (!supabaseUrl || !supabaseKey || !tableName) {
+    throw new Error('Supabase: supabaseUrl, supabaseKey y tableName son requeridos');
   }
 
-  return records;
+  // Normalize URL — strip trailing slash
+  const url = supabaseUrl.trim().replace(/\/$/, '');
+  const key = supabaseKey.trim();
+
+  console.log(`[extractSupabase] Conectando a ${url}, tabla: "${tableName}"`);
+
+  const supabase = createClient(url, key);
+  const select = (columns || '').trim() || '*';
+
+  const { data, error } = await supabase
+    .from(tableName)
+    .select(select)
+    .limit(MAX_ROWS_PER_TABLE);
+
+  if (error) {
+    console.error('[extractSupabase] error:', error);
+    const detail = error.message || error.details || JSON.stringify(error);
+    throw new Error(`Supabase error en tabla "${tableName}": ${detail}`);
+  }
+
+  const rows = data ?? [];
+  console.log(`[extractSupabase] ${rows.length} filas extraídas de "${tableName}"`);
+
+  return rows.map((row) => ({
+    table: tableName,
+    content: rowToText(tableName, row as unknown as Record<string, unknown>),
+  }));
 }

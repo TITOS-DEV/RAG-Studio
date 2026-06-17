@@ -165,9 +165,14 @@ export function WizardStep3({ onBack, onDone }: Props) {
     }, 1500);
   };
 
-  const onError = () => {
+  const onError = (err: any) => {
     setPhase('error');
-    toast({ title: 'Error al crear asistente', description: 'Verifica los datos e intenta de nuevo', variant: 'destructive' });
+    const detail =
+      err?.response?.data?.error ||
+      err?.response?.data?.message ||
+      err?.message ||
+      'Verifica los datos e intenta de nuevo';
+    toast({ title: 'Error al crear asistente', description: detail, variant: 'destructive' });
   };
 
   const jsonMutation = useMutation({
@@ -207,11 +212,15 @@ export function WizardStep3({ onBack, onDone }: Props) {
 
     if (sourceType === 'supabase') {
       if (!supabase.supabaseUrl.trim()) {
-        toast({ title: 'URL de Supabase requerida' });
+        toast({ title: 'URL de Supabase requerida', description: 'Ej: https://xxxx.supabase.co' });
+        return;
+      }
+      if (!supabase.supabaseKey.trim()) {
+        toast({ title: 'Service Role Key requerida', description: 'Encuéntrala en Settings → API → service_role' });
         return;
       }
       if (!supabase.tableName.trim()) {
-        toast({ title: 'Nombre de tabla requerido', description: 'Ingresa el nombre de la tabla a indexar' });
+        toast({ title: 'Nombre de tabla requerido', description: 'Ingresa el nombre exacto de la tabla a indexar' });
         return;
       }
     }
